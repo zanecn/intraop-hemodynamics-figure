@@ -80,14 +80,14 @@ def make_co(t):
     return c
 
 
-MAP = make_map(t)
-HR = make_hr(t)
+MAP  = make_map(t)
+HR   = make_hr(t)
 SPO2 = make_spo2(t)
 SVO2 = make_svo2(t)
 MPAP = make_mpap(t)
-CVP = make_cvp(t)
-CO = make_co(t)
-CI = np.where(~np.isnan(CO), CO / 1.7, np.nan)
+CVP  = make_cvp(t)
+CO   = make_co(t)
+CI   = np.where(~np.isnan(CO), CO / 1.7, np.nan)
 
 # Surgery phase definitions: name -> (x_start, x_end, fill_color)
 phases = {
@@ -96,8 +96,6 @@ phases = {
     'Closure':   (155, 215, '#d6ecd6'),
     'Emergence': (215, 260, '#e8d6f0'),
 }
-
-# Slightly darker vertical-line color matching each phase boundary
 phase_border = {
     'Ligation':  '#c8a96e',
     'Resection': '#c87878',
@@ -112,107 +110,128 @@ events = {
     'Extubation':              (222, '#8e44ad'),
 }
 
+# Font sizes
+AXIS_FONTSIZE   = 11   # axis labels & x-label
+TICK_FONTSIZE   = 10   # tick labels
+LEGEND_FONTSIZE = 8.5
+PHASE_LABEL_FS  = 9    # italic phase labels just above x-axis
+EVENT_LABEL_FS  = 9    # bold event-box labels (panel A only)
+
 fig, axes = plt.subplots(4, 1, figsize=(11, 10.5), sharex=True)
 fig.subplots_adjust(hspace=0.08, top=0.97, bottom=0.07, left=0.1, right=0.97)
 
 
 def shade_phases(ax, show_labels=False):
-    """Shade surgery phases; draw a slightly darker vertical line at each phase boundary."""
+    """Fill surgery-phase bands; draw subtle vertical boundary lines.
+    If show_labels=True, place italic phase names just above the x-axis."""
     for name, (x0, x1, col) in phases.items():
         ax.axvspan(x0, x1, color=col, alpha=0.55, zorder=0, linewidth=0)
-        # Subtle vertical boundary line in a darker shade of the phase color
         ax.axvline(x=x0, color=phase_border[name], linewidth=1.1,
                    linestyle='-', alpha=0.85, zorder=1)
     if show_labels:
-        trans = ax.get_xaxis_transform()  # x=data coords, y=axes fraction
+        trans = ax.get_xaxis_transform()   # x = data coords, y = axes fraction
         for name, (x0, x1, col) in phases.items():
             xc = (x0 + x1) / 2
             ax.text(xc, 0.04, name,
                     transform=trans, ha='center', va='bottom',
-                    fontsize=7.5, fontstyle='italic',
+                    fontsize=PHASE_LABEL_FS, fontstyle='italic',
                     color='#555555', zorder=5)
 
 
 def add_event_lines(ax):
+    """Dashed vertical lines for each surgical event — all panels."""
     for label, (x, col) in events.items():
         ax.axvline(x=x, color=col, linewidth=1.1, linestyle='--',
                    alpha=0.85, zorder=2)
 
 
 def add_event_annotations(ax):
-    y_top = ax.get_ylim()[1]
-    yrange = ax.get_ylim()[1] - ax.get_ylim()[0]
+    """Bold boxed labels for surgical events — panel A only."""
+    y_top   = ax.get_ylim()[1]
+    yrange  = ax.get_ylim()[1] - ax.get_ylim()[0]
     for label, (x, col) in events.items():
         ax.annotate(
             label,
             xy=(x, y_top - 0.01 * yrange),
             xytext=(x + 2, y_top - 0.01 * yrange),
             ha='left', va='top',
-            fontsize=7.2,
-            fontweight='bold',   # bold event label text
+            fontsize=EVENT_LABEL_FS,
+            fontweight='bold',
             color=col,
-            bbox=dict(boxstyle='round,pad=0.25', fc='white', ec=col,
-                      alpha=0.85, linewidth=0.8),
+            bbox=dict(boxstyle='round,pad=0.3', fc='white', ec=col,
+                      alpha=0.90, linewidth=1.2),
             zorder=6,
         )
 
 
-# Panel A: MAP / HR
+def style_ax(ax):
+    """Common axis styling: no top/right spine, horizontal gridlines only,
+    larger tick labels."""
+    ax.spines[['top', 'right']].set_visible(False)
+    ax.tick_params(labelsize=TICK_FONTSIZE)
+    ax.yaxis.grid(True, color='#cccccc', linewidth=0.6, linestyle='-', alpha=0.7)
+    ax.xaxis.grid(False)
+    ax.set_axisbelow(True)
+
+
+# ── Panel A: MAP / HR ──────────────────────────────────────────────────────
 ax = axes[0]
 shade_phases(ax)
 add_event_lines(ax)
 ax.plot(t, MAP, color='#b03030', linewidth=1.4, label='MAP (mmHg)', zorder=3)
 ax.plot(t, HR,  color='#d4860a', linewidth=1.2, linestyle='--', label='HR (bpm)', zorder=3)
-ax.set_ylabel('MAP / HR\n(mmHg / bpm)', fontsize=8.5)
+ax.set_ylabel('MAP / HR\n(mmHg / bpm)', fontsize=AXIS_FONTSIZE)
 ax.set_ylim(40, 150)
-ax.legend(loc='lower left', fontsize=7.5, framealpha=0.9, handlelength=1.5, borderpad=0.4)
-ax.tick_params(labelsize=8)
-ax.spines[['top', 'right']].set_visible(False)
-add_event_annotations(ax)
+ax.legend(loc='lower left', fontsize=LEGEND_FONTSIZE, framealpha=0.9,
+          handlelength=1.5, borderpad=0.4)
+style_ax(ax)
+add_event_annotations(ax)   # boxed bold labels in panel A only
 
-# Panel B: SpO2 / SvO2
+# ── Panel B: SpO2 / SvO2 ──────────────────────────────────────────────────
 ax = axes[1]
 shade_phases(ax)
 add_event_lines(ax)
 ax.plot(t, SPO2, color='#2980b9', linewidth=1.4, label='SpO\u2082 (%)', zorder=3)
 ax.plot(t, SVO2, color='#d4860a', linewidth=1.2, linestyle='-.', label='SvO\u2082 (%)', zorder=3)
-ax.set_ylabel('O\u2082 sat (%)', fontsize=8.5)
+ax.set_ylabel('O\u2082 sat (%)', fontsize=AXIS_FONTSIZE)
 ax.set_ylim(50, 104)
-ax.legend(loc='lower left', fontsize=7.5, framealpha=0.9, handlelength=1.5, borderpad=0.4)
-ax.tick_params(labelsize=8)
-ax.spines[['top', 'right']].set_visible(False)
+ax.legend(loc='lower left', fontsize=LEGEND_FONTSIZE, framealpha=0.9,
+          handlelength=1.5, borderpad=0.4)
+style_ax(ax)
 
-# Panel C: mPAP / CVP
+# ── Panel C: mPAP / CVP ───────────────────────────────────────────────────
 ax = axes[2]
 shade_phases(ax)
 add_event_lines(ax)
 ax.plot(t, MPAP, color='#7b3fa0', linewidth=1.4, label='mPAP (mmHg)', zorder=3)
 ax.plot(t, CVP,  color='#555555', linewidth=1.2, linestyle='--', label='CVP (mmHg)', zorder=3)
-ax.set_ylabel('Pressure\n(mmHg)', fontsize=8.5)
+ax.set_ylabel('Pressure\n(mmHg)', fontsize=AXIS_FONTSIZE)
 ax.set_ylim(-3, 44)
-ax.legend(loc='upper right', fontsize=7.5, framealpha=0.9, handlelength=1.5, borderpad=0.4)
-ax.tick_params(labelsize=8)
-ax.spines[['top', 'right']].set_visible(False)
+ax.legend(loc='upper right', fontsize=LEGEND_FONTSIZE, framealpha=0.9,
+          handlelength=1.5, borderpad=0.4)
+style_ax(ax)
 
-# Panel D: CO / CI  (phase labels shown just above x-axis)
+# ── Panel D: CO / CI  (phase labels shown just above x-axis) ──────────────
 ax = axes[3]
 shade_phases(ax, show_labels=True)
 add_event_lines(ax)
 ax.plot(t, CO, color='#1a7a3a', linewidth=1.6, label='CO (L/min)', zorder=3)
-ax.plot(t, CI, color='#1a7a3a', linewidth=1.2, linestyle='--', label='CI (L/min/m\u00b2)', zorder=3)
-ax.set_ylabel('CO / CI', fontsize=8.5)
+ax.plot(t, CI, color='#1a7a3a', linewidth=1.2, linestyle='--',
+        label='CI (L/min/m\u00b2)', zorder=3)
+ax.set_ylabel('CO / CI', fontsize=AXIS_FONTSIZE)
 ax.set_ylim(1.5, 7.5)
-ax.legend(loc='upper right', fontsize=7.5, framealpha=0.9, handlelength=1.5, borderpad=0.4)
-ax.tick_params(labelsize=8)
-ax.spines[['top', 'right']].set_visible(False)
+ax.legend(loc='upper right', fontsize=LEGEND_FONTSIZE, framealpha=0.9,
+          handlelength=1.5, borderpad=0.4)
+style_ax(ax)
 
-axes[3].set_xlabel('Time from induction (min)', fontsize=9)
+axes[3].set_xlabel('Time from induction (min)', fontsize=AXIS_FONTSIZE)
 axes[3].set_xlim(-70, 260)
 
 fig.text(0.01, 0.99, 'Figure 1 \u2014 Intraoperative Hemodynamics  (v17 spec)',
          va='top', ha='left', fontsize=10, fontweight='bold')
 
 os.makedirs('output', exist_ok=True)
-fig.savefig('output/figure1_hemodynamics.png', dpi=180, bbox_inches='tight', facecolor='white')
+fig.savefig('output/figure1_hemodynamics.png', dpi=180, bbox_inches='tight',
+            facecolor='white')
 plt.close()
 print('Saved to output/figure1_hemodynamics.png')
